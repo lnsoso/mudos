@@ -1,0 +1,19 @@
+%include "packages/packages"
+
+%ifdef GNU
+OBJ=$(addprefix $(OBJDIR)/,$(subst .c,.o,$(SRC)))
+
+$(OBJDIR)/%.o: %.c
+	$(CC) -I$(OBJDIR) -I.. $(CFLAGS) -o $@ -c $<
+%else
+.c.$(O):
+	$(CC) $(CFLAGS) -I.. -c $*.c
+%endif
+
+all: $(OBJ)
+	ar rcu packages.$(A) $(OBJ)
+	$(RANLIB) packages.$(A)
+
+clean:
+	rm -f *.$(O)
+	rm -f packages.$(A)
