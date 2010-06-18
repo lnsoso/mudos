@@ -1431,22 +1431,19 @@ object_t *find_object P1(char *, str)
 /* Look for a loaded object. Return 0 if non found. */
 object_t *find_object2 P1(char *, str)
 {
-    register object_t *ob;
-    char p[MAX_OBJECT_NAME_SIZE];
+	register object_t *ob;
+	char p[MAX_OBJECT_NAME_SIZE];
 
-    if (!strip_name(str, p, sizeof p))
-	return 0;
+	if (!strip_name(str, p, sizeof p)) return 0;
 
-    if ((ob = lookup_object_hash(p))) {
+	if ((ob = lookup_object_hash(p))) {
 #ifdef LPC_TO_C
-	if (ob->flags & O_COMPILED_PROGRAM)
-	    return 0;
+		if (ob->flags & O_COMPILED_PROGRAM) return 0;
 #endif
-	if (ob->flags & O_SWAPPED)
-	    load_ob_from_swap(ob);
-	return ob;
-    }
-    return 0;
+		if (ob->flags & O_SWAPPED) load_ob_from_swap(ob);
+		return ob;
+	}
+	return 0;
 }
 
 #ifndef NO_ENVIRONMENT

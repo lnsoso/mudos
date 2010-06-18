@@ -65,3 +65,4 @@ VALID_WRITE
 PARSE_FIRST_INVENTORY:parse_get_first_inventory
 PARSE_NEXT_INVENTORY:parse_get_next_inventory
 PARSE_ENVIRONMENT:parse_get_environment
+DIRECT_RUN_BINARY

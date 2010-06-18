@@ -234,6 +234,7 @@ void save_binary P3(program_t *, prog, mem_block_t *, includes, mem_block_t *, p
 #define ALLOC_BUF(size) \
     if ((size) > buf_size) { FREE(buf); buf = DXALLOC(buf_size = size, TAG_TEMPORARY, "ALLOC_BUF"); }
 
+/* add by soso on 2010-06-18 for binaries support */
 /* crude hack to check both .B and .b */
 #ifdef LPC_TO_C
 #define OUT_OF_DATE (lpc_obj ? load_binary(name, 0) : 0)
@@ -247,242 +248,270 @@ program_t *int_load_binary P2(char *, name, lpc_object_t *, lpc_obj)
 program_t *int_load_binary P1(char *, name)
 #endif
 {
-    char file_name_buf[400];
-    char *buf, *iname, *file_name = file_name_buf, *file_name_two = &file_name_buf[200];
-    FILE *f;
-    int i, buf_size, ilen;
-    time_t mtime;
-    short len;
-    program_t *p, *prog;
-    object_t *ob;
-    struct stat st;
-
-    /* stuff from prolog() */
-    num_parse_error = 0;
-
-    sprintf(file_name, "%s/%s", SAVE_BINARIES, name);
-    if (file_name[0] == '/')
-	file_name++;
-    len = strlen(file_name);
+	char file_name_buf[400];
+	char *buf, *iname, *file_name = file_name_buf, *file_name_two = &file_name_buf[200];
+	FILE *f;
+	int i, buf_size, ilen;
+	time_t mtime;
+	short len;
+	program_t *p, *prog;
+	object_t *ob;
+	struct stat st;
+	
+	char *para_fn;     /* add by doing */
+	svalue_t *ret;     /* add by doing */
+	int src_flag;     /* add by doing */
+	
+	/* stuff from prolog() */
+	num_parse_error = 0;
+	
+	sprintf(file_name, "%s/%s", SAVE_BINARIES, name);
+	if (file_name[0] == '/')
+		file_name++;
+	len = strlen(file_name);
 #ifdef LPC_TO_C
-    file_name[len - 1] = (lpc_obj ? 'B' : 'b');	/* change .c ending to .b */
+	file_name[len - 1] = (lpc_obj ? 'B' : 'b');     /* change .c ending to .b */
 #else
-    file_name[len - 1] = 'b';
+	file_name[len - 1] = 'b';
 #endif
-
-    if (stat(file_name, &st) != -1)
-	mtime = st.st_mtime;
-    else 
-	return OUT_OF_DATE;
-
-    if (!(f = fopen(file_name, FOPEN_READ)))
-	return OUT_OF_DATE;
-
-    if (comp_flag) {
-	debug_message(" loading binary %s ... ", name);
+	
+	if (stat(file_name, &st) != -1)
+		mtime = st.st_mtime;
+	else 
+		return OUT_OF_DATE;
+	
+	if (!(f = fopen(file_name, FOPEN_READ)))
+		return OUT_OF_DATE;
+	
+	/* Doing 修改了这里。为了使driver能够直接驱动mudlib的
+	 binaries，所以将不判断魔数(magic_id)和配置驱动ID、
+	 配置ID，因为直接运行binaries，所以不存在驱动ID和配
+	 置ID不同的情况。当然，有些文件有必要检查这些，那就
+	 是位于/data 下面的这些文件，他们往往是由在游戏的过
+	 程中由系统生成的，需要进行即时编译。同时，和游戏配
+	 置相关的一些程序，我将考虑放到/data/config下面。这
+	 样修改源程序中的配置以后可以直接进行再编译生效。
+	 src_flag如果不为零，表示按照旧有方式执行，如果为零，
+	 则按照修改以后的方式运行。这个值是通过MASTEROB对象
+	 中的direct_run_binary这个变量取得的。 如果这个值返
+	 回零，则按照原有的方式执行(即src_flag设置为1)， 如
+	 果返回真，那么就直接读取binaries。
+	 联系地址：doinglu@163.net */
+	para_fn = add_slash(name);
+	push_malloced_string(para_fn);
+	ret = safe_apply_master_ob(APPLY_DIRECT_RUN_BINARY, 1);
+	if (MASTER_APPROVED(ret))
+		src_flag = 0;
+	else
+		src_flag = 1;
+	
+	if (comp_flag) {
+		debug_message(" loading binary %s ... ", name);
 #ifdef LATTICE
-	fflush(stderr);
+		fflush(stderr);
 #endif
-    }
-    /* see if we're out of date with source */
-    if (check_times(mtime, name) <= 0) {
-	if (comp_flag)
-	    debug_message("out of date (source file newer).\n");
-	fclose(f);
-	return OUT_OF_DATE;
-    }
-    buf = DXALLOC(buf_size = SMALL_STRING_SIZE, TAG_TEMPORARY, "ALLOC_BUF");
-
-    /*
-     * Read preamble.  This must match, or we assume a different driver or
-     * configuration.
-     */
-    if (fread(buf, strlen(magic_id), 1, f) != 1 ||
-	strncmp(buf, magic_id, strlen(magic_id)) != 0) {
-	if (comp_flag)
-	    debug_message("out of date. (bad magic number)\n");
-	fclose(f);
-	FREE(buf);
-	return OUT_OF_DATE;
-    }
-    if ((fread((char *) &i, sizeof i, 1, f) != 1 || driver_id != i)
-#ifdef LPC_TO_C
-	&& !lpc_obj
-#endif
-	    ) {
-	if (comp_flag)
-	    debug_message("out of date. (driver changed)\n");
-	fclose(f);
-	FREE(buf);
-	return OUT_OF_DATE;
-    }
-    if (fread((char *) &i, sizeof i, 1, f) != 1 || config_id != i) {
-	if (comp_flag)
-	    debug_message("out of date. (config file changed)\n");
-	fclose(f);
-	FREE(buf);
-	return OUT_OF_DATE;
-    }
-    if (check_times(mtime, SIMUL_EFUN) <= 0) {
-	if (comp_flag)
-	    debug_message("out of date (simul_efun newer).\n");
-	fclose(f);
-	FREE(buf);
-	return OUT_OF_DATE;
-    }
-    /*
-     * read list of includes and check times
-     */
-    fread((char *) &len, sizeof len, 1, f);
-    ALLOC_BUF(len);
-    fread(buf, sizeof(char), len, f);
-    for (iname = buf; iname < buf + len; iname += strlen(iname) + 1) {
-	if (check_times(mtime, iname) <= 0) {
-	    if (comp_flag)
-		debug_message("out of date (include file newer).\n");
-	    fclose(f);
-	    FREE(buf);
-	    return OUT_OF_DATE;
 	}
-    }
-
-    /* check program name */
-    fread((char *) &len, sizeof len, 1, f);
-    ALLOC_BUF(len + 1);
-    fread(buf, sizeof(char), len, f);
-    buf[len] = '\0';
-    if (strcmp(name, buf) != 0) {
-	if (comp_flag)
-	    debug_message("binary name inconsistent with file.\n");
-	fclose(f);
-	FREE(buf);
-	return OUT_OF_DATE;
-    }
-    /*
-     * Read program structure.
-     */
-    fread((char *) &ilen, sizeof ilen, 1, f);
-    p = (program_t *) DXALLOC(ilen, TAG_PROGRAM, "load_binary");
-    fread((char *) p, ilen, 1, f);
-    locate_in(p);		/* from swap.c */
-    p->name = make_shared_string(name);
-
-    /* Read inherit names and find prog.  Check mod times also. */
-    for (i = 0; i < (int) p->num_inherited; i++) {
-	fread((char *) &len, sizeof len, 1, f);
-	ALLOC_BUF(len + 1);
-	fread(buf, sizeof(char), len, f);
-	buf[len] = '\0';
-
+	/* see if we're out of date with source */
+	if (src_flag && check_times(mtime, name) <= 0) {
+		if (comp_flag)
+			debug_message("out of date (source file newer).\n");
+		fclose(f);
+		return OUT_OF_DATE;
+	}
+	buf = DXALLOC(buf_size = SMALL_STRING_SIZE, TAG_TEMPORARY, "ALLOC_BUF");
+	
 	/*
-	 * Check times against inherited source.  If saved binary of
-	 * inherited prog exists, check against it also.
+	 * Read preamble. This must match, or we assume a different driver or
+	 * configuration.
 	 */
-	sprintf(file_name_two, "%s/%s", SAVE_BINARIES, buf);
-	if (file_name_two[0] == '/')
-	    file_name_two++;
-	len = strlen(file_name_two);
-	file_name_two[len - 1] = 'b';
-	if (check_times(mtime, buf) <= 0 ||
-	    check_times(mtime, file_name_two) == 0) {	/* ok if -1 */
-
-	    if (comp_flag)
-		debug_message("out of date (inherited source newer).\n");
-	    fclose(f);
-	    free_string(p->name);
-	    FREE(p);
-	    FREE(buf);
-	    return OUT_OF_DATE;
+	if (fread(buf, strlen(magic_id), 1, f) != 1 ||
+		src_flag && strncmp(buf, magic_id, strlen(magic_id)) != 0) {
+		if (comp_flag)
+			debug_message("out of date. (bad magic number)\n");
+		fclose(f);
+		FREE(buf);
+		return OUT_OF_DATE;
 	}
-	/* find inherited program (maybe load it here?) */
-	ob = find_object2(buf);
-	if (!ob) {
-	    if (comp_flag)
-		debug_message("missing inherited prog.\n");
-	    fclose(f);
-	    free_string(p->name);
-	    FREE(p);
-	    inherit_file = buf;	/* freed elsewhere */
-	    return 0;
-	}
-	p->inherit[i].prog = ob->prog;
-    }
-
-    /* Read string table */
-    for (i = 0; i < (int) p->num_strings; i++) {
-	fread((char *) &len, sizeof len, 1, f);
-	ALLOC_BUF(len + 1);
-	fread(buf, sizeof(char), len, f);
-	buf[len] = '\0';
-	p->strings[i] = make_shared_string(buf);
-    }
-
-    /* var names */
-    for (i = 0; i < (int) p->num_variables_defined; i++) {
-	fread((char *) &len, sizeof len, 1, f);
-	ALLOC_BUF(len + 1);
-	fread(buf, sizeof(char), len, f);
-	buf[len] = '\0';
-	p->variable_table[i] = make_shared_string(buf);
-    }
-
-    /* function names */
-    for (i = 0; i < (int) p->num_functions_defined; i++) {
-	fread((char *) &len, sizeof len, 1, f);
-	ALLOC_BUF(len + 1);
-	fread(buf, sizeof(char), len, f);
-	buf[len] = '\0';
-	p->function_table[i].name = make_shared_string(buf);
-    }
-
-    /* line numbers */
-    fread((char *) &len, sizeof len, 1, f);
-    p->file_info = (unsigned short *) DXALLOC(len, TAG_LINENUMBERS, "load binary");
-    fread((char *) p->file_info, len, 1, f);
-    p->line_info = (unsigned char *)&p->file_info[p->file_info[1]];
-
-    /* patches */
-    fread((char *) &len, sizeof len, 1, f);
-    ALLOC_BUF(len);
-    fread(buf, len, 1, f);
-    /* fix up some stuff */
-    patch_in(p, (short *) buf, len / sizeof(short));
-
-    fclose(f);
-    FREE(buf);
-    
-    /*
-     * Now finish everything up.  (stuff from epilog())
-     */
-    prog = p;
-
-    total_prog_block_size += prog->total_size;
-    total_num_prog_blocks += 1;
-
-    swap_line_numbers(prog);
-    reference_prog(prog, "load_binary");
-    for (i = 0; (unsigned) i < prog->num_inherited; i++) {
-	reference_prog(prog->inherit[i].prog, "inheritance");
-    }
-
+	if ((fread((char *) &i, sizeof i, 1, f) != 1 ||
+		 src_flag && driver_id != i)
 #ifdef LPC_TO_C
-    if (prog->program_size == 0) {
-	if (lpc_obj) {
-	    if (comp_flag)
-		debug_message("linking jump table ...\n");
-	    link_jump_table(prog, (void **)lpc_obj->jump_table);
-	} else {
-	    if (prog)
-		free_prog(prog, 1);
-	    return OUT_OF_DATE;
-	}
-    }
+		&& !lpc_obj
 #endif
-
-    if (comp_flag)
-	debug_message("done.\n");
-    return prog;
-}				/* load_binary() */
+		) {
+		if (comp_flag)
+			debug_message("out of date. (driver changed)\n");
+		fclose(f);
+		FREE(buf);
+		return OUT_OF_DATE;
+	}
+	if (fread((char *) &i, sizeof i, 1, f) != 1 ||
+		src_flag && config_id != i) {
+		if (comp_flag)
+			debug_message("out of date. (config file changed)\n");
+		fclose(f);
+		FREE(buf);
+		return OUT_OF_DATE;
+	}
+	/*
+	 * read list of includes and check times
+	 */
+	fread((char *) &len, sizeof len, 1, f);
+	ALLOC_BUF(len);
+	fread(buf, sizeof(char), len, f);
+	if (src_flag)
+	{
+		/* 需要检查嵌入的头文件的时间 */
+		for (iname = buf; iname < buf + len; iname += strlen(iname) + 1) {
+			if (check_times(mtime, iname) <= 0) {
+				if (comp_flag)
+					debug_message("out of date (include file newer).\n");
+				fclose(f);
+				FREE(buf);
+				return OUT_OF_DATE;
+			}
+		}
+	}
+	
+	/* check program name */
+	fread((char *) &len, sizeof len, 1, f);
+	ALLOC_BUF(len + 1);
+	fread(buf, sizeof(char), len, f);
+	buf[len] = '\0';
+	if (strcmp(name, buf) != 0) {
+		if (comp_flag)
+			debug_message("binary name inconsistent with file.\n");
+		fclose(f);
+		FREE(buf);
+		return OUT_OF_DATE;
+	}
+	/*
+	 * Read program structure.
+	 */
+	fread((char *) &ilen, sizeof ilen, 1, f);
+	p = (program_t *) DXALLOC(ilen, TAG_PROGRAM, "load_binary");
+	fread((char *) p, ilen, 1, f);
+	locate_in(p);         /* from swap.c */
+	p->name = make_shared_string(name);
+	
+	/* Read inherit names and find prog. Check mod times also. */
+	for (i = 0; i < (int) p->num_inherited; i++) {
+		fread((char *) &len, sizeof len, 1, f);
+		ALLOC_BUF(len + 1);
+		fread(buf, sizeof(char), len, f);
+		buf[len] = '\0';
+		
+		/*
+		 * Check times against inherited source. If saved binary of
+		 * inherited prog exists, check against it also.
+		 */
+		sprintf(file_name_two, "%s/%s", SAVE_BINARIES, buf);
+		if (file_name_two[0] == '/')
+			file_name_two++;
+		len = strlen(file_name_two);
+		file_name_two[len - 1] = 'b';
+		if (src_flag &&
+			(check_times(mtime, buf) <= 0 ||
+			 check_times(mtime, file_name_two) == 0)) {     /* ok if -1 */
+				
+				if (comp_flag)
+					debug_message("out of date (inherited source newer).\n");
+				fclose(f);
+				free_string(p->name);
+				FREE(p);
+				FREE(buf);
+				return OUT_OF_DATE;
+			}
+		/* find inherited program (maybe load it here?) */
+		ob = find_object2(buf);
+		if (!ob) {
+			if (comp_flag)
+				debug_message("missing inherited prog.\n");
+			fclose(f);
+			free_string(p->name);
+			FREE(p);
+			inherit_file = buf;     /* freed elsewhere */
+			return 0;
+		}
+		p->inherit.prog = ob->prog;
+	}
+	
+	/* Read string table */
+	for (i = 0; i < (int) p->num_strings; i++) {
+		fread((char *) &len, sizeof len, 1, f);
+		ALLOC_BUF(len + 1);
+		fread(buf, sizeof(char), len, f);
+		buf[len] = '\0';
+		p->strings = make_shared_string(buf);
+	}
+	
+	/* var names */
+	for (i = 0; i < (int) p->num_variables_defined; i++) {
+		fread((char *) &len, sizeof len, 1, f);
+		ALLOC_BUF(len + 1);
+		fread(buf, sizeof(char), len, f);
+		buf[len] = '\0';
+		p->variable_table = make_shared_string(buf);
+	}
+	
+	/* function names */
+	for (i = 0; i < (int) p->num_functions_defined; i++) {
+		fread((char *) &len, sizeof len, 1, f);
+		ALLOC_BUF(len + 1);
+		fread(buf, sizeof(char), len, f);
+		buf[len] = '\0';
+		p->function_table.name = make_shared_string(buf);
+	}
+	sort_function_table(p);
+	
+	/* line numbers */
+	fread((char *) &len, sizeof len, 1, f);
+	p->file_info = (unsigned short *) DXALLOC(len, TAG_LINENUMBERS, "load binary");
+	fread((char *) p->file_info, len, 1, f);
+	p->line_info = (unsigned char *)&p->file_info[p->file_info[1]];
+	
+	/* patches */
+	fread((char *) &len, sizeof len, 1, f);
+	ALLOC_BUF(len);
+	fread(buf, len, 1, f);
+	/* fix up some stuff */
+	patch_in(p, (short *) buf, len / sizeof(short));
+	
+	fclose(f);
+	FREE(buf);
+	
+	/*
+	 * Now finish everything up. (stuff from epilog())
+	 */
+	prog = p;
+	prog->id_number = get_id_number();
+	
+	total_prog_block_size += prog->total_size;
+	total_num_prog_blocks += 1;
+	
+	swap_line_numbers(prog);
+	reference_prog(prog, "load_binary");
+	for (i = 0; (unsigned) i < prog->num_inherited; i++) {
+		reference_prog(prog->inherit.prog, "inheritance");
+	}
+	
+#ifdef LPC_TO_C
+	if (prog->program_size == 0) {
+		if (lpc_obj) {
+			if (comp_flag)
+				debug_message("linking jump table ...\n");
+			link_jump_table(prog, (void **)lpc_obj->jump_table);
+		} else {
+			if (prog)
+				free_prog(prog, 1);
+			return OUT_OF_DATE;
+		}
+	}
+#endif
+	
+	if (comp_flag)
+		debug_message("done.\n");
+	return prog;
+}                   /* load_binary() */
 
 void init_binaries P2(int, argc, char **, argv)
 {
@@ -657,3 +686,172 @@ FILE *crdir_fopen P1(char *, file_name)
     return fopen(file_name, "wb");
 }				
 /* crdir_fopen() */
+
+/* add by soso on 2010-06-18 for binaries support */
+#ifdef LPC_TO_C
+#define NEED_UPDATE (lpc_obj ? check_binary(name, 0) : 0)
+#else
+#define NEED_UPDATE 0
+#endif
+
+/* Add by doing for check wether the binary is out of date */
+#ifdef LPC_TO_C
+int check_binary P2(char *, name, lpc_object_t *, lpc_obj)
+#else
+int check_binary P1(char *, name)
+#endif
+{
+	char file_name_buf[400];
+	char *buf, *iname, *file_name = file_name_buf, *file_name_two = &file_name_buf[200];
+	FILE *f;
+	int i, buf_size, ilen;
+	time_t mtime;
+	short len;
+	program_t *p;
+	struct stat st;
+	
+	/* stuff from prolog() */
+	num_parse_error = 0;
+	
+	while (*name == '/') name++;
+	sprintf(file_name, "%s/%s", SAVE_BINARIES, name);
+	if (file_name[0] == '/')
+		file_name++;
+	len = strlen(file_name);
+#ifdef LPC_TO_C
+	file_name[len - 1] = (lpc_obj ? 'B' : 'b');     /* change .c ending to .b */
+#else
+	file_name[len - 1] = 'b';
+#endif
+	
+	if (stat(file_name, &st) != -1)
+		mtime = st.st_mtime;
+	else 
+		return NEED_UPDATE;
+	
+	if (!(f = fopen(file_name, FOPEN_READ)))
+		return NEED_UPDATE;
+	
+	if (comp_flag) {
+		debug_message(" loading binary %s ... ", name);
+#ifdef LATTICE
+		fflush(stderr);
+#endif
+	}
+	/* see if we're out of date with source */
+	if (check_times(mtime, name) <= 0) {
+		if (comp_flag)
+			debug_message("out of date (source file newer).\n");
+		fclose(f);
+		return NEED_UPDATE;
+	}
+	buf = DXALLOC(buf_size = SMALL_STRING_SIZE, TAG_TEMPORARY, "ALLOC_BUF");
+	
+	/*
+	 * Read preamble. This must match, or we assume a different driver or
+	 * configuration.
+	 */
+	if (fread(buf, strlen(magic_id), 1, f) != 1 ||
+		strncmp(buf, magic_id, strlen(magic_id)) != 0) {
+		if (comp_flag)
+			debug_message("out of date. (bad magic number)\n");
+		fclose(f);
+		FREE(buf);
+		return NEED_UPDATE;
+	}
+	if ((fread((char *) &i, sizeof i, 1, f) != 1 ||
+		 driver_id != i)
+#ifdef LPC_TO_C
+		&& !lpc_obj
+#endif
+		) {
+		if (comp_flag)
+			debug_message("out of date. (driver changed)\n");
+		fclose(f);
+		FREE(buf);
+		return NEED_UPDATE;
+	}
+	if (fread((char *) &i, sizeof i, 1, f) != 1 ||
+		config_id != i) {
+		if (comp_flag)
+			debug_message("out of date. (config file changed)\n");
+		fclose(f);
+		FREE(buf);
+		return NEED_UPDATE;
+	}
+	/*
+	 * read list of includes and check times
+	 */
+	fread((char *) &len, sizeof len, 1, f);
+	ALLOC_BUF(len);
+	fread(buf, sizeof(char), len, f);
+	
+	for (iname = buf; iname < buf + len; iname += strlen(iname) + 1) {
+		if (check_times(mtime, iname) <= 0) {
+			if (comp_flag)
+				debug_message("out of date (include file newer).\n");
+			fclose(f);
+			FREE(buf);
+			return NEED_UPDATE;
+		}
+	}
+	
+	/* check program name */
+	fread((char *) &len, sizeof len, 1, f);
+	ALLOC_BUF(len + 1);
+	fread(buf, sizeof(char), len, f);
+	buf[len] = '\0';
+	if (strcmp(name, buf) != 0) {
+		if (comp_flag)
+			debug_message("binary name inconsistent with file.\n");
+		fclose(f);
+		FREE(buf);
+		return NEED_UPDATE;
+	}
+	/*
+	 * Read program structure.
+	 */
+	fread((char *) &ilen, sizeof ilen, 1, f);
+	p = (program_t *) DXALLOC(ilen, TAG_PROGRAM, "load_binary");
+	fread((char *) p, ilen, 1, f);
+	locate_in(p);         /* from swap.c */
+	p->name = make_shared_string(name);
+	
+	/* Read inherit names and find prog. Check mod times also. */
+	for (i = 0; i < (int) p->num_inherited; i++) {
+		fread((char *) &len, sizeof len, 1, f);
+		ALLOC_BUF(len + 1);
+		fread(buf, sizeof(char), len, f);
+		buf[len] = '\0';
+		
+		/*
+		 * Check times against inherited source. If saved binary of
+		 * inherited prog exists, check against it also.
+		 */
+		sprintf(file_name_two, "%s/%s", SAVE_BINARIES, buf);
+		if (file_name_two[0] == '/')
+			file_name_two++;
+		len = strlen(file_name_two);
+		file_name_two[len - 1] = 'b';
+		if ((check_times(mtime, buf) <= 0 ||
+			 check_times(mtime, file_name_two) == 0)) {     /* ok if -1 */
+			
+			if (comp_flag)
+				debug_message("out of date (inherited source newer).\n");
+			fclose(f);
+			free_string(p->name);
+			FREE(p);
+			FREE(buf);
+			return NEED_UPDATE;
+		}
+		p->inherit.prog = 0;
+	}
+	
+	fclose(f);
+	FREE(buf);
+	FREE(p);
+	
+	if (comp_flag)
+		debug_message("done.\n");
+	return 1; /* the binary is valid */
+}                   /* check_binary() */

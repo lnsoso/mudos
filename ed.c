@@ -2784,3 +2784,20 @@ char *object_ed_cmd P2(object_t *, ob, char *, str)
 }
 #endif
 
+/* add by soso on 2010-06-18 for binaries support */
+#ifdef F_BINARY_VALID
+void
+f_binary_valid PROT((void))
+{
+	int i;
+	
+#ifdef LPC_TO_C
+	i = check_binary(sp->u.string, 0);
+#else
+	i = check_binary(sp->u.string);
+#endif
+	free_string_svalue(sp);
+	put_number(i);
+}
+
+#endif

@@ -558,6 +558,3 @@ void unlink_swap_file()
     fclose(swap_file);
 #endif
 }
-
-
-
