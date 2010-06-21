@@ -1959,25 +1959,22 @@ void yywarn P1(char *, str) {
  */
 program_t *
 compile_file P2(int, f, char *, name) {
-    int yyparse PROT((void));
-    static int guard = 0;
-    program_t *prog;
+	int yyparse PROT((void));
+	static int guard = 0;
+	program_t *prog;
     
-    /* The parser isn't reentrant.  On a few occasions (compile
-     * errors, valid_override) LPC code is called during compilation,
-     * causing the possibility of arriving here again.
-     */
-    if (guard) {
-	error("Object cannot be loaded during compilation.\n");
-    }
-    guard = 1;
-    
-    prolog(f, name);
-    yyparse();
-    prog = epilog();
-
-    guard = 0;
-    return prog;
+	/* The parser isn't reentrant.  On a few occasions (compile
+	 * errors, valid_override) LPC code is called during compilation,
+	 * causing the possibility of arriving here again.
+	 */
+	if (guard) error("Object cannot be loaded during compilation.\n");
+	
+	guard = 1;
+	prolog(f, name);
+	yyparse();
+	prog = epilog();
+	guard = 0;
+	return prog;
 }
 
 int get_id_number() {

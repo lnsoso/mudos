@@ -66,8 +66,8 @@
  *   * Requires sbrk().
  */
 #undef SYSMALLOC
-#define SMALLOC
-#undef BSDMALLOC
+#undef SMALLOC
+#define BSDMALLOC
 
 /* You may optionally choose one (or none) of these malloc wrappers.  These
  * can be used in conjunction with any of the above malloc packages.
@@ -657,13 +657,13 @@
  * PACKAGE_UIDS: define this if you want a driver that does use uids.
  *
  */
-#undef PACKAGE_UIDS
+#define PACKAGE_UIDS
 
 /* AUTO_SETEUID: when an object is created it's euid is automatically set to
  *   the equivalent of seteuid(getuid(this_object())).  undef AUTO_SETEUID
  *   if you would rather have the euid of the created object be set to 0.
  */
-#undef AUTO_SETEUID
+#define AUTO_SETEUID
 
 /* AUTO_TRUST_BACKBONE: define this if you want objects with the backbone
  *   uid to automatically be trusted and to have their euid set to the uid of

@@ -295,6 +295,7 @@ int main P2(int, argc, char **, argv)
 #ifdef BINARIES
     init_binaries(argc, argv);
 #endif
+
 #ifdef LPC_TO_C
     init_lpc_to_c();
 #endif
@@ -311,20 +312,23 @@ int main P2(int, argc, char **, argv)
     eval_cost = max_cost;	/* needed for create() functions */
 
     save_context(&econ);
-    if (SETJMP(econ.context)) {
-	debug_message("The simul_efun (%s) and master (%s) objects must be loadable.\n", 
-		      SIMUL_EFUN, MASTER_FILE);
-	exit(-1);
-    } else {
-	init_simul_efun(SIMUL_EFUN);
-	init_master();
-    }
-    pop_context(&econ);
 
-    for (i = 1; i < argc; i++) {
-	if (argv[i][0] != '-') {
-	    continue;
+	if (SETJMP(econ.context)) {
+		debug_message("The simul_efun (%s) and master (%s) objects must be loadable.\n", SIMUL_EFUN, MASTER_FILE);
+		exit(-1);
 	} else {
+		init_simul_efun(SIMUL_EFUN);
+		debug_message("init_simul_efun load finish.\n");
+		init_master();
+		debug_message("master load finish.\n");
+	}
+
+	pop_context(&econ);
+
+	for (i = 1; i < argc; i++) {
+		if (argv[i][0] != '-') {
+			continue;
+		} else {
 	    /*
 	     * Look at flags. -m and -o has already been tested.
 	     */

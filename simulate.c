@@ -418,6 +418,7 @@ object_t *int_load_object P1(char *, lname)
 	debug_message("Illegal pathname: /%s\n", real_name);
 	error("Illegal path name '/%s'.\n", real_name);
     }
+
 #ifdef BINARIES
     if (!(prog = load_binary(real_name, lpc_obj)) && !inherit_file) {
 #endif
@@ -428,6 +429,7 @@ object_t *int_load_object P1(char *, lname)
 	    fflush(stderr);
 #endif
 	}
+
 	f = open(real_name, O_RDONLY);
 	if (f == -1) {
 	    debug_perror("compile_file", real_name);
@@ -465,7 +467,6 @@ object_t *int_load_object P1(char *, lname)
 #ifdef BINARIES
     }
 #endif
-
     /* Sorry, can't handle objects without programs yet. */
     if (inherit_file == 0 && (num_parse_error > 0 || prog == 0)) {
 	if (prog)
@@ -496,7 +497,7 @@ object_t *int_load_object P1(char *, lname)
 	if (strcmp(inhbuf, name) == 0) {
 	    error("Illegal to inherit self.\n");
 	}
-
+		
 	if ((inh_obj = lookup_object_hash(inhbuf))) {
 #ifdef LPC_TO_C
 	    DEBUG_CHECK(!(inh_obj->flags & O_COMPILED_PROGRAM), "Inherited object is already loaded!\n");
@@ -509,7 +510,6 @@ object_t *int_load_object P1(char *, lname)
 	}
 	if (!inh_obj) error("Inherited file '/%s' does not exist!\n",
 			    inhbuf);
-
 	/*
 	 * Yes, the following is necessary.  It is possible that when we
 	 * loaded the inherited object, it loaded this object from it's
@@ -540,6 +540,7 @@ object_t *int_load_object P1(char *, lname)
 #endif
 	return ob;
     }
+
     ob = get_empty_object(prog->num_variables_total);
     /* Shared string is no good here */
     ob->name = alloc_cstring(name, "load_object");

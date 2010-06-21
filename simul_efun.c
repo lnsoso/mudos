@@ -52,27 +52,27 @@ void init_simul_efun P1(char *, file)
     lpc_object_t *compiled_version;
 #endif
     object_t *new_ob;
-    
-    if (!file || !file[0]) {
-	fprintf(stderr, "No simul_efun\n");
-	return;
-    }
-    if (!strip_name(file, buf, sizeof buf))
-	error("Ilegal simul_efun file name '%s'\n", file);
-    
+
+	if (!file || !file[0]) {
+		fprintf(stderr, "No simul_efun\n");
+		return;
+	}
+
+	if (!strip_name(file, buf, sizeof buf)) error("Ilegal simul_efun file name '%s'\n", file);
+
 #ifdef LPC_TO_C
-    compiled_version = (lpc_object_t *)lookup_object_hash(buf);
+	compiled_version = (lpc_object_t *)lookup_object_hash(buf);
 #endif
 
-    if (file[strlen(file) - 2] != '.')
-	strcat(buf, ".c");
+	if (file[strlen(file) - 2] != '.') strcat(buf, ".c");
 
-    new_ob = load_object(buf, compiled_version);
-    if (new_ob == 0) {
-	fprintf(stderr, "The simul_efun file %s was not loaded.\n", buf);
-	exit(-1);
-    }
-    set_simul_efun(new_ob);
+	new_ob = load_object(buf, compiled_version);
+
+	if (new_ob == 0) {
+		fprintf(stderr, "The simul_efun file %s was not loaded.\n", buf);
+		exit(-1);
+	}
+	set_simul_efun(new_ob);
 }
 
 static void remove_simuls() {
