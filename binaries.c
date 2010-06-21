@@ -432,7 +432,8 @@ program_t *int_load_binary P1(char *, name)
 			inherit_file = buf;     /* freed elsewhere */
 			return 0;
 		}
-		p->inherit.prog = ob->prog;
+		// last modified by soso on 2010-06-21 for binaries support
+		p->inherit->prog = ob->prog;
 	}
 	
 	/* Read string table */
@@ -459,9 +460,9 @@ program_t *int_load_binary P1(char *, name)
 		ALLOC_BUF(len + 1);
 		fread(buf, sizeof(char), len, f);
 		buf[len] = '\0';
-		p->function_table.name = make_shared_string(buf);
+		p->function_table->name = make_shared_string(buf);
 	}
-	sort_function_table(p);
+	// sort_function_table(p);
 	
 	/* line numbers */
 	fread((char *) &len, sizeof len, 1, f);
@@ -483,7 +484,9 @@ program_t *int_load_binary P1(char *, name)
 	 * Now finish everything up. (stuff from epilog())
 	 */
 	prog = p;
-	prog->id_number = get_id_number();
+	// last modified by soso on 2010-06-21 旧的 mudos 中才有 id_number v22.2b14 中已经移除。
+	// prog->id_number = get_id_number();
+	prog->ref = get_id_number();
 	
 	total_prog_block_size += prog->total_size;
 	total_num_prog_blocks += 1;
@@ -491,7 +494,7 @@ program_t *int_load_binary P1(char *, name)
 	swap_line_numbers(prog);
 	reference_prog(prog, "load_binary");
 	for (i = 0; (unsigned) i < prog->num_inherited; i++) {
-		reference_prog(prog->inherit.prog, "inheritance");
+		reference_prog(prog->inherit->prog, "inheritance");
 	}
 	
 #ifdef LPC_TO_C
@@ -844,7 +847,7 @@ int check_binary P1(char *, name)
 			FREE(buf);
 			return NEED_UPDATE;
 		}
-		p->inherit.prog = 0;
+		p->inherit->prog = 0;
 	}
 	
 	fclose(f);
