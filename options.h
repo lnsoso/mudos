@@ -281,7 +281,7 @@
  * of the operating system's.  It has the advantage of giving the same value
  * on all architectures, and being stronger than the standard UNIX crypt().
  */
-#undef CUSTOM_CRYPT
+#define CUSTOM_CRYPT
 
 /*
  * Some minor tweaks that make it a bit easier to run code designed to run
@@ -629,15 +629,15 @@
 #endif
 
 /* PACKAGE_DB: efuns for external database access using msql */
-#undef PACKAGE_DB
+#define PACKAGE_DB
 
 /* If PACKAGE_DB is defined above, you must pick ONE of the following supported
  * databases
  */
 #ifdef PACKAGE_DB
-#define USE_MSQL 1		/* MiniSQL, it's small; it's free */
-#undef USE_MYSQL 2		/* MySQL, bigger; it's free */
-#define DEFAULT_DB USE_MSQL	/* default database */
+#undef USE_MSQL 1		/* MiniSQL, it's small; it's free */
+#define USE_MYSQL 2		/* MySQL, bigger; it's free */
+#define DEFAULT_DB USE_MYSQL	/* default database */
 #endif
 
 /****************************************************************************
@@ -657,13 +657,13 @@
  * PACKAGE_UIDS: define this if you want a driver that does use uids.
  *
  */
-#define PACKAGE_UIDS
+#undef PACKAGE_UIDS
 
 /* AUTO_SETEUID: when an object is created it's euid is automatically set to
  *   the equivalent of seteuid(getuid(this_object())).  undef AUTO_SETEUID
  *   if you would rather have the euid of the created object be set to 0.
  */
-#define AUTO_SETEUID
+#undef AUTO_SETEUID
 
 /* AUTO_TRUST_BACKBONE: define this if you want objects with the backbone
  *   uid to automatically be trusted and to have their euid set to the uid of
