@@ -672,7 +672,10 @@ static int MySQL_connect P5(dbconn_t *, c, char *, host, char *, database, char 
     tmp = ALLOCATE(MYSQL, TAG_DB, "MySQL_connect");
     *(c->mysql.errormsg) = 0;
 
-    c->mysql.handle = mysql_connect(tmp, host, username, password);
+	// add by soso on 2010-06-22
+	mysql_init(tmp);
+	c->mysql.handle = mysql_real_connect(tmp, host, username, password,"db",0,NULL,0);
+    //c->mysql.handle = mysql_connect(tmp, host, username, password);
     if (!c->mysql.handle) {
 	strncpy(c->mysql.errormsg, mysql_error(tmp), sizeof(c->mysql.errormsg));
 	c->mysql.errormsg[sizeof(c->mysql.errormsg) - 1] = 0;
