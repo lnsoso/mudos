@@ -45,7 +45,7 @@ typedef union dbconn_u {
 #endif
 #ifdef USE_MYSQL
     struct tmp_mysql {
-	char errormsg[256];
+		char errormsg[256];
 	MYSQL *handle;
 	MYSQL_RES *results;
     } mysql;
