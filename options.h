@@ -635,7 +635,7 @@
  * databases
  */
 #ifdef PACKAGE_DB
-#undef USE_MSQL 1		/* MiniSQL, it's small; it's free */
+#undef USE_MSQL 1			/* MiniSQL, it's small; it's free */
 #define USE_MYSQL 2		/* MySQL, bigger; it's free */
 #define DEFAULT_DB USE_MYSQL	/* default database */
 #endif

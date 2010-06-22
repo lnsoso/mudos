@@ -1195,7 +1195,8 @@ int get_socket_address P4(int, fd, char *, addr, int *, port, int, local)
 	*port = 0;
 	return EEFDRANGE;
     }
-    addr_in = &(local ? lpc_socks[fd].l_addr : lpc_socks[fd].r_addr);
+	// last modified by soso on 2010-06-22
+    addr_in = (local ? &lpc_socks[fd].l_addr : &lpc_socks[fd].r_addr);
     *port = (int) ntohs(addr_in->sin_port);
     strcpy(addr, inet_ntoa(addr_in->sin_addr));
     return EESUCCESS;
