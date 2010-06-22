@@ -657,7 +657,7 @@
  * PACKAGE_UIDS: define this if you want a driver that does use uids.
  *
  */
-#undef PACKAGE_UIDS
+#define PACKAGE_UIDS
 
 /* AUTO_SETEUID: when an object is created it's euid is automatically set to
  *   the equivalent of seteuid(getuid(this_object())).  undef AUTO_SETEUID
