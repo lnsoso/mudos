@@ -402,6 +402,7 @@ object_t *int_load_object P1(char *, lname)
     (void) strcat(real_name, ".c");
 
     if (stat(real_name, &c_st) == -1 || S_ISDIR(c_st.st_mode)) {
+		debug_message('stat = -1, real_name : %s, name%s', real_name, name);
 	save_command_giver(command_giver);
 	ob = load_virtual_object(name, 0);
 	restore_command_giver();

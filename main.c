@@ -318,9 +318,9 @@ int main P2(int, argc, char **, argv)
 		exit(-1);
 	} else {
 		init_simul_efun(SIMUL_EFUN);
-		debug_message("init_simul_efun load finish.\n");
+		debug_message("%s load finish.\n", SIMUL_EFUN);
 		init_master();
-		debug_message("master load finish.\n");
+		debug_message("%s load finish.\n", MASTER_FILE);
 	}
 
 	pop_context(&econ);
