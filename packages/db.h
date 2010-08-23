@@ -28,6 +28,9 @@
 #ifdef INCL_LOCAL_INCLUDE_MYSQL_MYSQL_H
 #include "/usr/local/include/mysql/mysql.h"
 #endif
+#ifdef INCL_LOCAL_MYSQL_INCLUDE_MYSQL_MYSQL_H
+#include "/usr/local/mysql/include/mysql/mysql.h"
+#endif
 #ifdef INCL_LOCAL_MYSQL_MYSQL_H
 #include "/usr/local/mysql/include/mysql.h"
 #endif
@@ -35,6 +38,7 @@
 #include "/usr/include/mysql/mysql.h"
 #endif
 #endif
+#include "/usr/local/mysql/include/mysql/mysql.h"
 
 typedef union dbconn_u {
 #ifdef USE_MSQL
@@ -45,7 +49,7 @@ typedef union dbconn_u {
 #endif
 #ifdef USE_MYSQL
     struct tmp_mysql {
-		char errormsg[256];
+	char errormsg[256];
 	MYSQL *handle;
 	MYSQL_RES *results;
     } mysql;
